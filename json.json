@@ -1,0 +1,73 @@
+[
+    {
+      "pet_image": "https://example.com/dog1.jpg",
+      "pet_name": "Buddy",
+      "pet_age": 2,
+      "pet_location": "New York, USA",
+      "pet_category": "dog"
+    },
+    {
+      "pet_image": "https://example.com/cat1.jpg",
+      "pet_name": "Mittens",
+      "pet_age": 1,
+      "pet_location": "London, UK",
+      "pet_category": "cat"
+    },
+    {
+      "pet_image": "https://example.com/fish1.jpg",
+      "pet_name": "Goldie",
+      "pet_age": 1,
+      "pet_location": "Sydney, Australia",
+      "pet_category": "fish"
+    },
+    {
+      "pet_image": "https://example.com/dog2.jpg",
+      "pet_name": "Charlie",
+      "pet_age": 4,
+      "pet_location": "Toronto, Canada",
+      "pet_category": "dog"
+    },
+    {
+      "pet_image": "https://example.com/bird1.jpg",
+      "pet_name": "Kiwi",
+      "pet_age": 2,
+      "pet_location": "Mumbai, India",
+      "pet_category": "bird"
+    },
+    {
+      "pet_image": "https://example.com/hamster1.jpg",
+      "pet_name": "Nibbles",
+      "pet_age": 1,
+      "pet_location": "Berlin, Germany",
+      "pet_category": "hamster"
+    },
+    {
+      "pet_image": "https://example.com/dog3.jpg",
+      "pet_name": "Max",
+      "pet_age": 5,
+      "pet_location": "Paris, France",
+      "pet_category": "dog"
+    },
+    {
+      "pet_image": "https://example.com/cat2.jpg",
+      "pet_name": "Whiskers",
+      "pet_age": 3,
+      "pet_location": "Tokyo, Japan",
+      "pet_category": "cat"
+    },
+    {
+      "pet_image": "https://example.com/turtle1.jpg",
+      "pet_name": "Shelly",
+      "pet_age": 8,
+      "pet_location": "Cape Town, South Africa",
+      "pet_category": "turtle"
+    },
+    {
+      "pet_image": "https://example.com/fish2.jpg",
+      "pet_name": "Bubbles",
+      "pet_age": 2,
+      "pet_location": "Rio de Janeiro, Brazil",
+      "pet_category": "fish"
+    }
+  ]
+  
