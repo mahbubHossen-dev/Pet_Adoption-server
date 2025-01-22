@@ -149,6 +149,31 @@ async function run() {
             res.send(result)
         })
 
+        // get specific donationCampaign
+        app.get('/donationDetails/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)}
+            const result = await donationsCollection.findOne(query)
+            res.send(result)
+            console.log(id)
+            console.log(result)
+        })
+
+        // new pet data post
+        app.post('/addedPet', async (req, res) => {
+            const pet = req.body;
+            const result = await petsCollection.insertOne(pet)
+            res.send(result)
+        })
+
+        // get My Pets Data
+        app.get('/myPets/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = {email}
+            const result = await petsCollection.find(query).toArray()
+            res.send(result)
+        })
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
