@@ -143,6 +143,13 @@ async function run() {
             console.log(email)
         })
 
+        // Post Donation Campaigns
+        app.post('/addDonationCampaign', async (req, res) => {
+            const campaign = req.body;
+            const result = await donationsCollection.insertOne(campaign)
+            res.send(result)
+        })
+
         // get Donation Campaigns Data
         app.get('/donations', async (req, res) => {
             const result = await donationsCollection.find().sort({date: -1}).toArray()
@@ -173,6 +180,44 @@ async function run() {
             const result = await petsCollection.find(query).toArray()
             res.send(result)
         })
+
+        app.delete('/removeMyPet/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)}
+            const result = await petsCollection.deleteOne(query)
+            res.send(result)
+        })
+
+        app.patch('/updatePet/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)}
+            const updateData = req.body
+            // const result = await petsCollection.findOne()
+            const updateDoc = {
+                $set: {
+                    image: updateData.image,
+                    name: updateData.name,
+                    age: updateData.age,
+                    location: updateData.location,
+                    category: updateData.category,
+                    updateDate: Date.now()
+                }
+            }
+            const result = await petsCollection.updateOne(query, updateDoc)
+            console.log(result)
+            res.send(result)
+        })
+
+
+        // app.patch('/myAddedPet/:id', async (req, res) => {
+        //     const id = req.params.id
+        //     const data = req.body
+        //     const email = data.email
+        //     const filter = {_id: new ObjectId(id)}
+        //     const result = await petsCollection.findOne(filter)
+            
+
+        // })
 
 
         // Send a ping to confirm a successful connection
