@@ -138,19 +138,33 @@ async function run() {
         })
 
         // patch adoption request
-        app.patch('/adoptionRequest/:id', verifyToken, async (req, res) => {
+        app.patch('/adoptionRequest/:id', async (req, res) => {
             const id = req.params.id
             const email = req.body.adoptReqUserInfo.email
             const requestData = req.body
             const query = { _id: new ObjectId(id) }
             const isRequested = await petsCollection.findOne(query)
-
-            if (isRequested.adoptionStatus === 'requested') {
-                return res.status(400).send('already requested.')
+            console.log(email)
+            if(!email){
+                 res.status(400).send('Login First')
+                 return
             }
+
+            if(isRequested){
+                 res.status(400).send('Already requested')
+                 return
+            }
+            
+            
+            console.log('return')
             const updateDoc = {
                 $set: {
-                    ...requestData
+                    adoptReqUserInfo: {
+                        user_name: requestData.name,
+                        email: requestData.email,
+                        phone: requestData.phone,
+                        address: requestData.address
+                    }
                 }
             }
             const result = await petsCollection.updateOne(query, updateDoc)
@@ -288,7 +302,7 @@ async function run() {
         })
 
 
-        // My adopt request petData
+        // get My adopt request petData
         app.get('/myAdoptionRequest/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const query = { 
