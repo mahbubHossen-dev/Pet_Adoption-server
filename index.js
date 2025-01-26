@@ -57,7 +57,6 @@ async function run() {
         const db = client.db('petAdoption')
         const petsCollection = db.collection('pets')
         const userCollection = db.collection('users')
-        const adoptionRequestCollection = db.collection('adoption-request')
         const donationsCollection = db.collection('Donation-Campaigns')
         // post new user
 
@@ -67,7 +66,7 @@ async function run() {
         app.post('/jwt', async (req, res) => {
             const email = req.body;
             const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '5h' })
-            
+
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
@@ -106,26 +105,26 @@ async function run() {
             const search = req.query.search
             const category = req.query.category
             let query;
-            if(category){
-                query = {category}
-                
-            } 
+            if (category) {
+                query = { category }
+
+            }
 
             if (search) {
                 const option = { name: { $regex: search, $options: 'i' } }
-                const result = await petsCollection.find(option).sort({date: -1}).toArray()
+                const result = await petsCollection.find(option).sort({ date: -1 }).toArray()
                 return res.send(result)
             }
-            
-            
-            const result = await petsCollection.find(query).sort({date: -1}).toArray()
+
+
+            const result = await petsCollection.find(query).sort({ date: -1 }).toArray()
             res.send(result)
         })
         // get pets category
         app.get('/pets/:category', async (req, res) => {
             let category = req.params.category;
-            let query = {category};
-            
+            let query = { category };
+
             const result = await petsCollection.find(query).toArray()
             res.send(result)
         })
@@ -133,21 +132,20 @@ async function run() {
         // get Pets specific id
         app.get('/details/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await petsCollection.findOne(query)
             res.send(result)
         })
 
-        // post adoption request
-        app.patch('/adoptionRequest/:id', async(req, res) => {
+        // patch adoption request
+        app.patch('/adoptionRequest/:id', verifyToken, async (req, res) => {
             const id = req.params.id
             const email = req.body.adoptReqUserInfo.email
             const requestData = req.body
-            const query = {_id: new ObjectId(id)}
-            const query2 = {}
+            const query = { _id: new ObjectId(id) }
             const isRequested = await petsCollection.findOne(query)
 
-            if(isRequested.adoptionStatus === 'requested'){
+            if (isRequested.adoptionStatus === 'requested') {
                 return res.status(400).send('already requested.')
             }
             const updateDoc = {
@@ -168,16 +166,14 @@ async function run() {
 
         // get Donation Campaigns Data
         app.get('/donations', async (req, res) => {
-            const result = await donationsCollection.find().sort({date: -1}).toArray()
+            const result = await donationsCollection.find().sort({ date: -1 }).toArray()
             res.send(result)
         })
-
-       
 
         // get specific donationCampaign
         app.get('/donationDetails/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await donationsCollection.findOne(query)
             res.send(result)
         })
@@ -195,25 +191,25 @@ async function run() {
             const email = req.params.email;
 
 
-            if(decodedEmail !== email){
-                return res.status(401).send({message: 'unauthorized'})
+            if (decodedEmail !== email) {
+                return res.status(401).send({ message: 'unauthorized' })
             }
 
-            const query = {email}
+            const query = { email }
             const result = await petsCollection.find(query).toArray()
             res.send(result)
         })
 
         app.delete('/removeMyPet/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await petsCollection.deleteOne(query)
             res.send(result)
         })
 
         app.patch('/updatePet/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const updateData = req.body
             // const result = await petsCollection.findOne()
             const updateDoc = {
@@ -227,15 +223,15 @@ async function run() {
                 }
             }
             const result = await petsCollection.updateOne(query, updateDoc)
-            
+
             res.send(result)
         })
 
         // change adopted true or false
-        app.patch('/petAdopted/:id', async (req, res) => {
+        app.patch('/petAdopted/:id',verifyToken, async (req, res) => {
             const data = req.body;
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const updateDoc = {
                 $set: {
                     adoptionStatus: data.adoptionStatus,
@@ -243,9 +239,75 @@ async function run() {
                 }
             }
             const result = await petsCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
+
+        // get my pet donation data
+        app.get('/myDonationPets/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const result = await donationsCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        // pause Donation
+        app.patch('/pauseDonation/:id',verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const { pause } = req.body
+            const updateDoc = {
+                $set: {
+                    pause: pause
+                }
+            }
+            const result = await donationsCollection.updateOne(query, updateDoc)
+            res.send(result)
+            console.log(pause)
+        })
+
+        // Edit Donation        
+        app.patch('/editDonation/:id',verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const data = req.body
+            const updateDoc = {
+                // todo
+                $set: {
+                    max_donation_amount: data.max_donation_amount,
+                    lastDateOfDonation: data.lastDateOfDonation,
+                    name: data.name,
+                    image: data.imageUrl,
+                    shortDescription: data.shortDescription,
+                    longDescription: data.longDescription,
+                    updateDate: new Date(),
+                }
+            }
+            const result = await donationsCollection.updateOne(query, updateDoc)
+            res.send(result)
+            console.log(query)
         })
 
 
+        // My adopt request petData
+        app.get('/myAdoptionRequest/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            const query = { 
+                email: email,
+                adoptReqUserInfo: { $exists: true },
+            }
+            // console.log(adoptReqUserInfo)
+            const result = await petsCollection.find(query).toArray()
+            res.send(result)
+        })
+
+
+        // get my Donations In Pet
+        // app.get('/myDonationsInPet/:email', async (req, res) => {
+        //     const email = req.params.email;
+        //     const query = {'adoptReqUserInfo.email': email}
+        //     // const result = await petsCollection.find(query).toArray()
+        //     res.send(result)
+        // })
         // manage user adoption request
         // app.patch('/adopt-request/:id', async (req, res) => {
         //     const id = req.params.id;
@@ -260,7 +322,7 @@ async function run() {
         //     const email = data.email
         //     const filter = {_id: new ObjectId(id)}
         //     const result = await petsCollection.findOne(filter)
-            
+
 
         // })
 
