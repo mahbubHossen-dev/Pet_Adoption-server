@@ -138,7 +138,6 @@ async function run() {
                 query = {category}
             }
 
-            console.log(category)
             const result = await petsCollection.find(query).toArray()
             const filterPets = result.filter(pet => pet.adopted !== true)
             res.send(filterPets)
@@ -281,10 +280,43 @@ async function run() {
         })
 
         // get Donation Campaigns Data
+        // app.get('/donations', async (req, res) => {
+        //     const result = await donationsCollection.find().sort({ date: -1 }).toArray()
+        //     res.send(result)
+        // })
+
+
         app.get('/donations', async (req, res) => {
-            const result = await donationsCollection.find().sort({ date: -1 }).toArray()
-            res.send(result)
-        })
+            const page = parseInt(req.query.page) || 1; // পেজ নাম্বার
+            const limit = parseInt(req.query.limit) || 6; // প্রতি পেজে কতগুলি ডেটা
+        
+            try {
+                const result = await donationsCollection
+                    .find()
+                    .skip((page - 1) * limit) // পেজ নাম্বার অনুযায়ী ডেটা স্কিপ
+                    .limit(limit) // প্রতি পেজে কত ডেটা রিটার্ন করবে
+                    .sort({ date: -1 });
+        
+                const totalDonations = await donationsCollection.countDocuments(); // মোট ডোনেশন
+                const totalPages = Math.ceil(totalDonations / limit); // মোট পেজ সংখ্যা
+                const nextPage = page < totalPages ? page + 1 : null; // পরবর্তী পেজ থাকলে
+        
+                res.json({
+                    results: result,
+                    nextPage: nextPage,
+                });
+            } catch (err) {
+                console.error('Error fetching donations:', err);
+                res.status(500).json({ message: 'Server Error' });
+            }
+        });
+        
+        
+        
+
+
+
+
 
         // get specific donationCampaign
         app.get('/donationDetails/:id', async (req, res) => {
