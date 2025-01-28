@@ -9,7 +9,7 @@ const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 3000
 
 app.use(cors({
-    origin: ['http://localhost:5173'],
+    origin: ['http://localhost:5173', 'https://petadoptionass-12.web.app'],
     credentials: true,
     optionalSuccessStatus: 200
 }))
@@ -33,7 +33,6 @@ const client = new MongoClient(uri, {
     }
 });
 
-
 const verifyToken = (req, res, next) => {
     const token = req.cookies?.token;
     if (!token) {
@@ -46,6 +45,7 @@ const verifyToken = (req, res, next) => {
         }
 
         req.user = decoded
+        // console.log(decoded)
         next()
     })
 }
@@ -53,7 +53,7 @@ const verifyToken = (req, res, next) => {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
         const db = client.db('petAdoption')
         const petsCollection = db.collection('pets')
@@ -61,8 +61,36 @@ async function run() {
         const donationsCollection = db.collection('Donation-Campaigns')
         const donationDetailsCollection = db.collection('Donation-Details')
         // post new user
+        
 
+        
+        // use Verify admin
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.user?.email
+            const query = {email}
+            const user = await userCollection.findOne(query)
+            const isAdmin = user?.role === 'Admin'
+            if(!isAdmin){
+                return res.status(403).send({message: 'Forbidden Access'})
+            }
+            next()
+        }
 
+        app.get('/user/admin/:email', verifyToken,async (req, res) => {
+            const email = req.params.email
+            if(email !== req.user?.email){
+                return res.status(403).send({message: 'unauthorized'})
+            }
+            const query = {email}
+            const user = await userCollection.findOne(query)
+
+            let admin = false
+            if(user){
+                admin = user?.role === 'Admin'
+            }
+            res.send({admin})
+            console.log(req.user.email)
+        })
         // JWT
         // Generate Token
         app.post('/jwt', async (req, res) => {
@@ -128,9 +156,9 @@ async function run() {
             let category = req.params.category;
             let query = { category };
 
-            const pets = await petsCollection.find(query).toArray()
-            
-            res.send(result)
+            const result = await petsCollection.find(query).toArray()
+            const filterPets = result.filter(pet => pet.adopted !== true)
+            res.send(filterPets)
         })
 
         // get 3 Active donation campaign
@@ -150,13 +178,13 @@ async function run() {
         })
 
         // patch adoption request
-        app.patch('/adoptionRequest/:id', async (req, res) => {
+        app.patch('/adoptionRequest/:id', verifyToken, async (req, res) => {
             const id = req.params.id
             const email = req.body.adoptReqUserInfo.email
             const requestData = req.body
             const query = { _id: new ObjectId(id) }
             const isRequested = await petsCollection.findOne(query)
-
+            // console.log(requestData)
             if (!email) {
                 res.status(400).send('Login First')
                 return
@@ -169,13 +197,13 @@ async function run() {
 
             const updateDoc = {
                 $set: {
+                    adoptionStatus: requestData.adoptionStatus,
                     adoptReqUserInfo: {
-                        user_name: requestData.name,
-                        email: requestData.email,
-                        phone: requestData.phone,
-                        address: requestData.address
+                        name: requestData.adoptReqUserInfo.name,
+                        email: requestData.adoptReqUserInfo.email,
+                        phone: requestData.adoptReqUserInfo.phone,
+                        address: requestData.adoptReqUserInfo.address
                     },
-                    adopted: true
                 }
             }
             const result = await petsCollection.updateOne(query, updateDoc)
@@ -290,6 +318,20 @@ async function run() {
             // console.log(pause)
         })
 
+        app.patch('/unpauseDonation/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const { pause } = req.body
+            const updateDoc = {
+                $set: {
+                    pause: pause
+                }
+            }
+            const result = await donationsCollection.updateOne(query, updateDoc)
+            res.send(result)
+            // console.log(pause)
+        })
+
         // pause Donation
         app.patch('/unPausedDonation/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
@@ -341,7 +383,7 @@ async function run() {
 
 
         // Payment intent
-        app.post('/create-payment-intent', async (req, res) => {
+        app.post('/create-payment-intent', verifyToken, async (req, res) => {
             const { amount, donationId } = req.body;
             const donation = await donationsCollection.findOne({ _id: new ObjectId(donationId) })
             if (!donation) {
@@ -361,7 +403,7 @@ async function run() {
         })
 
         // post donation campaign for single donation
-        app.post('/add-donation', async (req, res) => {
+        app.post('/add-donation',verifyToken, async (req, res) => {
             const donationsDetails = req.body;
             const result = await donationDetailsCollection.insertOne(donationsDetails)
             res.send(result)
@@ -369,7 +411,7 @@ async function run() {
             // const donationData
         })
 
-        app.get('/myDonationsInPet/:email', async (req, res) => {
+        app.get('/myDonationsInPet/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             const query = { 'donarInfo.email': email }
             const result = await donationDetailsCollection.find(query).toArray()
@@ -377,7 +419,7 @@ async function run() {
         })
 
         // get userShow donations
-        app.get('/donationUser/:id', async (req, res) => {
+        app.get('/donationUser/:id',verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = {petId: id}
             const result = await donationDetailsCollection.find(query).toArray()
@@ -388,13 +430,13 @@ async function run() {
 
 
         // admin panel get all users
-        app.get('/users', async (req, res) => {
+        app.get('/users',verifyToken, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
         })
 
         // get all pets
-        app.get('/allPets', async (req, res) => {
+        app.get('/allPets',verifyToken, verifyAdmin, async (req, res) => {
             const result = await petsCollection.find().toArray()
             res.send(result)
         })
@@ -409,133 +451,35 @@ async function run() {
         })
 
         // get all donations
-        app.get('/allDonations', async (req, res) => {
+        app.get('/allDonations',verifyToken, verifyAdmin, async (req, res) => {
             const result = await donationsCollection.find().toArray()
             res.send(result)
         })
 
         // delete campaigns
-        app.delete('/deleteCampaigns/:id', async(req, res) => {
+        app.delete('/deleteCampaigns/:id', verifyToken, async(req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await donationsCollection.deleteOne(query)
             res.send(result)
         })
 
-        // get My Donation Details with donation details
+        // make admin user
+        app.patch('/makeAdmin/:email',async (req, res) => {
+            const email = req.params.email
+            const {role} = req.body; 
+            const query = {email}
+            const updateDoc = {
+                $set: {
+                    role: role
+                }
+            }
+            const result = await userCollection.updateOne(query, updateDoc)
+            res.send(result)
 
-        
-
-        // app.get("/pet/:id", async (req, res) => {
-        //     const petId = req.params.id;  // URL থেকে petId সংগ্রহ করা
-
-        //     try {
-        //         // MongoDB ডাটাবেসের সাথে সংযোগ
-        //         const db = client.db('petAdoption');
-        //         const donationsCollection = db.collection('Donation-Campaigns');
-        //         const donationDetailsCollection = db.collection('Donation-Details');
-
-        //         // Aggregation Pipeline
-        //         const result = await donationsCollection.aggregate([
-        //             {
-        //                 $match: { _id: new ObjectId(petId) }, // Pet ID এর সাথে মিলিয়ে পেট ফিল্টার করা
-        //             },
-        //             {
-        //                 $lookup: {
-        //                     from: "Donation-Details", // donationsDetailsCollection এ join করা
-        //                     localField: "_id",        // donationsCollection এর _id এর সাথে
-        //                     foreignField: "petId",    // donationDetailsCollection এর petId এর সাথে
-        //                     as: "donations",          // join এর ফলাফল "donations" নামে
-        //                 },
-        //             },
-        //             {
-        //                 $addFields: {
-        //                     totalDonations: {
-        //                         $sum: {
-        //                             $map: {
-        //                                 input: "$donations",  // donationDetails যোগ করা
-        //                                 as: "donation",
-        //                                 in: {
-        //                                     $toDouble: "$$donation.donarInfo.amount"  // amount কে সংখ্যা আকারে রূপান্তর
-        //                                 }
-        //                             },
-        //                         },
-        //                     },
-        //                 },
-        //             },
-        //         ]).toArray();
-
-        //         // যদি পেট না পাওয়া যায়
-        //         if (result.length === 0) {
-        //             return res.status(404).json({ message: "Pet not found" });
-        //         }
-
-        //         // পেটের তথ্য এবং ডোনেশন টোটাল সহ রিটার্ন করা
-        //         res.json(result[0]);
-
-        //     } catch (error) {
-        //         console.error("Error:", error);
-        //         res.status(500).json({ message: "Internal Server Error" });
-        //     }
-        // });
+        })
 
 
-        // app.get("/pet/:id", async (req, res) => {
-        //     const petId = req.params.id;  // URL থেকে petId সংগ্রহ করা
-
-        //     try {
-        //         // MongoDB ডাটাবেসের সাথে সংযোগ
-        //         // const db = client.db('petAdoption');
-        //         // const donationsCollection = db.collection('Donation-Campaigns');
-        //         // const donationDetailsCollection = db.collection('Donation-Details');
-
-        //         // Aggregation Pipeline
-        //         const result = await donationsCollection.aggregate([
-        //             {
-        //                 $match: { _id: new ObjectId(petId) }  // Pet ID এর সাথে মিলিয়ে পেট ফিল্টার করা
-        //             },
-        //             {
-        //                 $lookup: {
-        //                     from: "Donation-Details",  // donationDetailsCollection এ join করা
-        //                     localField: "_id",          // donationsCollection এর _id এর সাথে
-        //                     foreignField: "petId",      // donationDetailsCollection এর petId এর সাথে
-        //                     as: "donationDetails"       // join এর ফলাফল "donationDetails" নামে
-        //                 }
-        //             },
-        //             {
-        //                 $addFields: {
-        //                     totalAmount: {
-        //                         $sum: {
-        //                             $map: {
-        //                                 input: "$donationDetails",  // donationDetails যোগ করা
-        //                                 as: "donation",
-        //                                 in: { $toDouble: "$$donation.amount" }  // amount কে number আকারে রূপান্তর
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //             },
-        //             {
-        //                 $project: {
-        //                     name: 1,   // পেটের নাম সহ অন্যান্য ডিটেইলস যেগুলো আপনি চান
-        //                     totalAmount: 1,  // totalAmount সহ
-        //                     // অন্যান্য ফিল্ডসমূহও এখানে যোগ করতে পারেন
-        //                 }
-        //             }
-        //         ]).toArray();
-
-        //         if (result.length === 0) {
-        //             return res.status(404).json({ message: "Pet not found" });
-        //         }
-
-        //         // পেটের তথ্য এবং ডোনেশন টোটাল সহ রিটার্ন করা
-        //         res.json(result[0]);
-
-        //     } catch (error) {
-        //         console.error("Error:", error);
-        //         res.status(500).json({ message: "Internal Server Error" });
-        //     }
-        // });
 
 
 
@@ -543,7 +487,7 @@ async function run() {
 
 
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
