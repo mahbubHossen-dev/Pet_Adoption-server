@@ -101,7 +101,6 @@ async function run() {
 
         })
 
-
         // get pets search and category
         app.get('/pets', async (req, res) => {
             const search = req.query.search
@@ -109,27 +108,38 @@ async function run() {
             let query;
             if (category) {
                 query = { category }
-
             }
 
             if (search) {
                 const option = { name: { $regex: search, $options: 'i' } }
                 const result = await petsCollection.find(option).sort({ date: -1 }).toArray()
+                
                 return res.send(result)
             }
-
-
+            
             const result = await petsCollection.find(query).sort({ date: -1 }).toArray()
-            res.send(result)
+            const filterPets = result.filter(pet => pet.adopted !== true)
+            // console.log(filterPets)
+            res.send(filterPets)
         })
+
         // get pets category
         app.get('/pets/:category', async (req, res) => {
             let category = req.params.category;
             let query = { category };
 
-            const result = await petsCollection.find(query).toArray()
+            const pets = await petsCollection.find(query).toArray()
+            
             res.send(result)
         })
+
+        // get 3 Active donation campaign
+        app.get('/threePets', async(req, res) => {
+            const result = await donationsCollection.find().limit(3).toArray()
+            const filter = result.filter(pet => pet.adopted !== false)
+            console.log(filter)
+            res.send(filter)
+        }) 
 
         // get Pets specific id
         app.get('/details/:id', async (req, res) => {
@@ -146,19 +156,17 @@ async function run() {
             const requestData = req.body
             const query = { _id: new ObjectId(id) }
             const isRequested = await petsCollection.findOne(query)
-            console.log(email)
+
             if (!email) {
                 res.status(400).send('Login First')
                 return
             }
 
-            if (isRequested) {
+            if (isRequested.adopted) {
                 res.status(400).send('Already requested')
                 return
             }
 
-
-            console.log('return')
             const updateDoc = {
                 $set: {
                     adoptReqUserInfo: {
@@ -166,7 +174,8 @@ async function run() {
                         email: requestData.email,
                         phone: requestData.phone,
                         address: requestData.address
-                    }
+                    },
+                    adopted: true
                 }
             }
             const result = await petsCollection.updateOne(query, updateDoc)
@@ -278,7 +287,7 @@ async function run() {
             }
             const result = await donationsCollection.updateOne(query, updateDoc)
             res.send(result)
-            console.log(pause)
+            // console.log(pause)
         })
 
         // pause Donation
@@ -314,7 +323,7 @@ async function run() {
             }
             const result = await donationsCollection.updateOne(query, updateDoc)
             res.send(result)
-            console.log(query)
+            // console.log(query)
         })
 
 
@@ -348,7 +357,7 @@ async function run() {
                 },
             });
             res.send({ clientSecret: client_secret })
-            console.log({ clientSecret: client_secret })
+            // console.log({ clientSecret: client_secret })
         })
 
         // post donation campaign for single donation
@@ -356,7 +365,7 @@ async function run() {
             const donationsDetails = req.body;
             const result = await donationDetailsCollection.insertOne(donationsDetails)
             res.send(result)
-            console.log(donationsDetails)
+            // console.log(donationsDetails)
             // const donationData
         })
 
@@ -373,7 +382,7 @@ async function run() {
             const query = {petId: id}
             const result = await donationDetailsCollection.find(query).toArray()
             res.send(result)
-            console.log(query)
+            // console.log(query)
         })
 
 
@@ -396,7 +405,7 @@ async function run() {
             const query = { petId: id }
             const result = await donationDetailsCollection.find(query).toArray()
             res.send(result)
-            console.log(query)
+            // console.log(query)
         })
 
         // get all donations
