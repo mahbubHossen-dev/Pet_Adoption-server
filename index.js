@@ -61,34 +61,34 @@ async function run() {
         const donationsCollection = db.collection('Donation-Campaigns')
         const donationDetailsCollection = db.collection('Donation-Details')
         // post new user
-        
 
-        
+
+
         // use Verify admin
         const verifyAdmin = async (req, res, next) => {
             const email = req.user?.email
-            const query = {email}
+            const query = { email }
             const user = await userCollection.findOne(query)
             const isAdmin = user?.role === 'Admin'
-            if(!isAdmin){
-                return res.status(403).send({message: 'Forbidden Access'})
+            if (!isAdmin) {
+                return res.status(403).send({ message: 'Forbidden Access' })
             }
             next()
         }
 
-        app.get('/user/admin/:email', verifyToken,async (req, res) => {
+        app.get('/user/admin/:email', verifyToken, async (req, res) => {
             const email = req.params.email
-            if(email !== req.user?.email){
-                return res.status(403).send({message: 'unauthorized'})
+            if (email !== req.user?.email) {
+                return res.status(403).send({ message: 'unauthorized' })
             }
-            const query = {email}
+            const query = { email }
             const user = await userCollection.findOne(query)
 
             let admin = false
-            if(user){
+            if (user) {
                 admin = user?.role === 'Admin'
             }
-            res.send({admin})
+            res.send({ admin })
             console.log(req.user.email)
         })
         // JWT
@@ -129,45 +129,108 @@ async function run() {
 
         })
 
-        // get pets search and category
-        app.get('/pets', async (req, res) => {
-            const search = req.query.search
-            const category = req.query.category
-            let query;
-            if (category) {
-                query = { category }
-            }
-
-            if (search) {
-                const option = { name: { $regex: search, $options: 'i' } }
-                const result = await petsCollection.find(option).sort({ date: -1 }).toArray()
-                
-                return res.send(result)
-            }
-            
-            const result = await petsCollection.find(query).sort({ date: -1 }).toArray()
-            const filterPets = result.filter(pet => pet.adopted !== true)
-            // console.log(filterPets)
-            res.send(filterPets)
-        })
 
         // get pets category
-        app.get('/pets/:category', async (req, res) => {
-            let category = req.params.category;
-            let query = { category };
+        app.get('/petsHome', async (req, res) => {
+            let category = req.query.category;
+            let query;
+            if(category){
+                query = {category}
+            }
 
+            console.log(category)
             const result = await petsCollection.find(query).toArray()
             const filterPets = result.filter(pet => pet.adopted !== true)
             res.send(filterPets)
         })
 
+
+
+        // get pets search and category
+        // app.get('/pets', async (req, res) => {
+        //     const search = req.query.search
+        //     const category = req.query.category
+        //     let query;
+        //     if (category) {
+        //         query = { category }
+        //     }
+
+        //     if (search) {
+        //         const option = { name: { $regex: search, $options: 'i' } }
+        //         const result = await petsCollection.find(option).sort({ date: -1 }).toArray()
+
+        //         return res.send(result)
+        //     }
+
+        //     const result = await petsCollection.find(query).sort({ date: -1 }).toArray()
+        //     const filterPets = result.filter(pet => pet.adopted !== true)
+        //     // console.log(filterPets)
+        //     res.send(filterPets)
+        // })
+
+
+        app.get('/pets', async (req, res) => {
+            const search = req.query.search;
+            const category = req.query.category;
+            const page = parseInt(req.query.page) || 1; // পেজ নাম্বার
+            const limit = parseInt(req.query.limit) || 6; // প্রতি পেজে কতটি আইটেম থাকবে
+
+            let query = {};
+
+            // ক্যাটেগরি ফিল্টার
+            if (category) {
+                query.category = category;
+            }
+
+            // সার্চ ফিল্টার
+            if (search) {
+                query.name = { $regex: search, $options: 'i' }; // ইনসেন্সিটিভ সার্চ
+            }
+
+            try {
+                // MongoDB ডেটা ফেচ করা
+                const result = await petsCollection
+                    .find(query)
+                    .skip((page - 1) * limit) // পেজ অনুযায়ী ডেটা স্কিপ
+                    .limit(limit) // প্রতিটি পেজে কত ডেটা রিটার্ন করতে হবে
+                    .sort({ date: -1 }) // তারিখ অনুযায়ী সোর্ট করা
+                    .toArray();
+
+                // পরবর্তী পেজের জন্য চেক করা
+                const totalPets = await petsCollection.countDocuments(query); // মোট পেট সংখ্যা
+                const totalPages = Math.ceil(totalPets / limit); // মোট পেজ সংখ্যা
+                const nextPage = page < totalPages ? page + 1 : null;
+
+                // ফিল্টার করা পেট
+                const filterPets = result.filter(pet => pet.adopted !== true); // Adopted pet বাদ দেয়া
+
+                // রেসপন্সে ডেটা পাঠানো
+                res.json({
+                    results: filterPets,
+                    nextPage: nextPage,
+                });
+            } catch (err) {
+                console.error('Error fetching pets:', err);
+                res.status(500).json({ message: 'Server Error' });
+            }
+        });
+
+
+
+
+
+
+
+
+
+
         // get 3 Active donation campaign
-        app.get('/threePets', async(req, res) => {
+        app.get('/threePets', async (req, res) => {
             const result = await donationsCollection.find().limit(3).toArray()
             const filter = result.filter(pet => pet.adopted !== false)
             console.log(filter)
             res.send(filter)
-        }) 
+        })
 
         // get Pets specific id
         app.get('/details/:id', async (req, res) => {
@@ -403,7 +466,7 @@ async function run() {
         })
 
         // post donation campaign for single donation
-        app.post('/add-donation',verifyToken, async (req, res) => {
+        app.post('/add-donation', verifyToken, async (req, res) => {
             const donationsDetails = req.body;
             const result = await donationDetailsCollection.insertOne(donationsDetails)
             res.send(result)
@@ -419,9 +482,9 @@ async function run() {
         })
 
         // get userShow donations
-        app.get('/donationUser/:id',verifyToken, async (req, res) => {
+        app.get('/donationUser/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
-            const query = {petId: id}
+            const query = { petId: id }
             const result = await donationDetailsCollection.find(query).toArray()
             res.send(result)
             // console.log(query)
@@ -430,13 +493,13 @@ async function run() {
 
 
         // admin panel get all users
-        app.get('/users',verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray()
             res.send(result)
         })
 
         // get all pets
-        app.get('/allPets',verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/allPets', verifyToken, verifyAdmin, async (req, res) => {
             const result = await petsCollection.find().toArray()
             res.send(result)
         })
@@ -451,13 +514,13 @@ async function run() {
         })
 
         // get all donations
-        app.get('/allDonations',verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/allDonations', verifyToken, verifyAdmin, async (req, res) => {
             const result = await donationsCollection.find().toArray()
             res.send(result)
         })
 
         // delete campaigns
-        app.delete('/deleteCampaigns/:id', verifyToken, async(req, res) => {
+        app.delete('/deleteCampaigns/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await donationsCollection.deleteOne(query)
@@ -465,10 +528,10 @@ async function run() {
         })
 
         // make admin user
-        app.patch('/makeAdmin/:email',async (req, res) => {
+        app.patch('/makeAdmin/:email', async (req, res) => {
             const email = req.params.email
-            const {role} = req.body; 
-            const query = {email}
+            const { role } = req.body;
+            const query = { email }
             const updateDoc = {
                 $set: {
                     role: role
