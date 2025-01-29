@@ -280,39 +280,10 @@ async function run() {
         })
 
         // get Donation Campaigns Data
-        // app.get('/donations', async (req, res) => {
-        //     const result = await donationsCollection.find().sort({ date: -1 }).toArray()
-        //     res.send(result)
-        // })
-
-
         app.get('/donations', async (req, res) => {
-            const page = parseInt(req.query.page) || 1; // পেজ নাম্বার
-            const limit = parseInt(req.query.limit) || 6; // প্রতি পেজে কতগুলি ডেটা
-        
-            try {
-                const result = await donationsCollection
-                    .find()
-                    .skip((page - 1) * limit) // পেজ নাম্বার অনুযায়ী ডেটা স্কিপ
-                    .limit(limit) // প্রতি পেজে কত ডেটা রিটার্ন করবে
-                    .sort({ date: -1 });
-        
-                const totalDonations = await donationsCollection.countDocuments(); // মোট ডোনেশন
-                const totalPages = Math.ceil(totalDonations / limit); // মোট পেজ সংখ্যা
-                const nextPage = page < totalPages ? page + 1 : null; // পরবর্তী পেজ থাকলে
-        
-                res.json({
-                    results: result,
-                    nextPage: nextPage,
-                });
-            } catch (err) {
-                console.error('Error fetching donations:', err);
-                res.status(500).json({ message: 'Server Error' });
-            }
-        });
-        
-        
-        
+            const result = await donationsCollection.find().sort({ createDate: -1 }).toArray()
+            res.send(result)
+        })
 
 
 
@@ -522,8 +493,6 @@ async function run() {
             // console.log(query)
         })
 
-
-
         // admin panel get all users
         app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray()
@@ -559,6 +528,14 @@ async function run() {
             res.send(result)
         })
 
+        // All Donation Details
+        // app.get('/allDonations/:id', async (req, res) => {
+        //     const id = req.params.id
+        //     const result = await donationDetailsCollection.find({petId: id}).toArray()
+        //     res.send(result)
+        // })
+
+
         // make admin user
         app.patch('/makeAdmin/:email', async (req, res) => {
             const email = req.params.email
@@ -571,7 +548,6 @@ async function run() {
             }
             const result = await userCollection.updateOne(query, updateDoc)
             res.send(result)
-
         })
 
 
