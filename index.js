@@ -20,8 +20,6 @@ app.get('/', (req, res) => {
     res.send('Hello World!')
 })
 
-
-
 const uri = `mongodb+srv://${process.env.ADOPTION_USER}:${process.env.ADOPTION_PASS}@cluster0.xdjfp.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -89,7 +87,7 @@ async function run() {
                 admin = user?.role === 'Admin'
             }
             res.send({ admin })
-            console.log(req.user.email)
+            // console.log(req.user.email)
         })
         // JWT
         // Generate Token
@@ -134,8 +132,8 @@ async function run() {
         app.get('/petsHome', async (req, res) => {
             let category = req.query.category;
             let query;
-            if(category){
-                query = {category}
+            if (category) {
+                query = { category }
             }
 
             const result = await petsCollection.find(query).toArray()
@@ -171,39 +169,35 @@ async function run() {
         app.get('/pets', async (req, res) => {
             const search = req.query.search;
             const category = req.query.category;
-            const page = parseInt(req.query.page) || 1; // পেজ নাম্বার
-            const limit = parseInt(req.query.limit) || 6; // প্রতি পেজে কতটি আইটেম থাকবে
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 6;
 
             let query = {};
 
-            // ক্যাটেগরি ফিল্টার
             if (category) {
                 query.category = category;
             }
 
-            // সার্চ ফিল্টার
             if (search) {
-                query.name = { $regex: search, $options: 'i' }; // ইনসেন্সিটিভ সার্চ
+                query.name = { $regex: search, $options: 'i' };
             }
 
             try {
-                // MongoDB ডেটা ফেচ করা
+
                 const result = await petsCollection
                     .find(query)
-                    .skip((page - 1) * limit) // পেজ অনুযায়ী ডেটা স্কিপ
-                    .limit(limit) // প্রতিটি পেজে কত ডেটা রিটার্ন করতে হবে
-                    .sort({ date: -1 }) // তারিখ অনুযায়ী সোর্ট করা
+                    .skip((page - 1) * limit)
+                    .limit(limit)
+                    .sort({ date: -1 })
                     .toArray();
 
-                // পরবর্তী পেজের জন্য চেক করা
-                const totalPets = await petsCollection.countDocuments(query); // মোট পেট সংখ্যা
-                const totalPages = Math.ceil(totalPets / limit); // মোট পেজ সংখ্যা
+
+                const totalPets = await petsCollection.countDocuments(query);
+                const totalPages = Math.ceil(totalPets / limit);
                 const nextPage = page < totalPages ? page + 1 : null;
 
-                // ফিল্টার করা পেট
                 const filterPets = result.filter(pet => pet.adopted !== true); // Adopted pet বাদ দেয়া
 
-                // রেসপন্সে ডেটা পাঠানো
                 res.json({
                     results: filterPets,
                     nextPage: nextPage,
@@ -215,19 +209,11 @@ async function run() {
         });
 
 
-
-
-
-
-
-
-
-
         // get 3 Active donation campaign
         app.get('/threePets', async (req, res) => {
             const result = await donationsCollection.find().limit(3).toArray()
             const filter = result.filter(pet => pet.adopted !== false)
-            console.log(filter)
+            // console.log(filter)
             res.send(filter)
         })
 
@@ -281,7 +267,23 @@ async function run() {
 
         // get Donation Campaigns Data
         app.get('/donations', async (req, res) => {
-            const result = await donationsCollection.find().sort({ createDate: -1 }).toArray()
+            const sortPrice = req.query.sortPrice
+            let sort = { createDate: -1 };
+            // console.log(sortPrice)
+
+            // if (category) {
+            //     query.category = category;
+            // }
+
+            // console.log(sortPrice)
+            if (sortPrice === 'Descending') {
+                sort = { max_donation_amount: -1 };
+            }
+
+            if (sortPrice === 'Ascending') {
+                sort = { max_donation_amount: 1 };
+            }
+            const result = await donationsCollection.find().sort(sort).toArray()
             res.send(result)
         })
 
@@ -472,6 +474,26 @@ async function run() {
         app.post('/add-donation', verifyToken, async (req, res) => {
             const donationsDetails = req.body;
             const result = await donationDetailsCollection.insertOne(donationsDetails)
+
+            const findPet = await donationsCollection.findOne({ _id: new ObjectId(donationsDetails.petId) })
+
+                let updateDoc;
+                if(findPet.totalDonation){
+                    updateDoc = {
+                        $set: {
+                            totalDonation: donationsDetails.donarInfo.amount + findPet.totalDonation
+                        }
+                    }
+                }else{
+                    updateDoc = {
+                        $set: {
+                            totalDonation: donationsDetails.donarInfo.amount
+                        }
+                    }
+                }
+                
+                await donationsCollection.updateOne({ _id: new ObjectId(donationsDetails.petId)}, updateDoc, { upsert: true })
+            
             res.send(result)
             // console.log(donationsDetails)
             // const donationData
@@ -529,11 +551,11 @@ async function run() {
         })
 
         // All Donation Details
-        // app.get('/allDonations/:id', async (req, res) => {
-        //     const id = req.params.id
-        //     const result = await donationDetailsCollection.find({petId: id}).toArray()
-        //     res.send(result)
-        // })
+        app.get('/allDonations/:id', async (req, res) => {
+            const id = req.params.id
+            const result = await donationDetailsCollection.find({ petId: id }).toArray()
+            res.send(result)
+        })
 
 
         // make admin user
