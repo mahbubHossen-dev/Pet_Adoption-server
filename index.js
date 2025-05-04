@@ -74,21 +74,23 @@ async function run() {
             next()
         }
 
-        app.get('/user/admin/:email', verifyToken, async (req, res) => {
-            const email = req.params.email
-            if (email !== req.user?.email) {
-                return res.status(403).send({ message: 'unauthorized' })
-            }
-            const query = { email }
-            const user = await userCollection.findOne(query)
+        // app.get('/user/admin/:email', verifyToken, async (req, res) => {
 
-            let admin = false
-            if (user) {
-                admin = user?.role === 'Admin'
-            }
-            res.send({ admin })
-            // console.log(req.user.email)
-        })
+        //     const email = req.params.email
+        //     // console.log(email)
+        //     if (email !== req.user?.email) {
+        //         return res.status(403).send({ message: 'unauthorized' })
+        //     }
+        //     const query = { email }
+        //     const user = await userCollection.findOne(query)
+
+        //     let admin = false
+        //     if (user) {
+        //         admin = user?.role === 'Admin'
+        //     }
+        //     res.send({ admin })
+        //     console.log(req.user.email)
+        // })
         // JWT
         // Generate Token
         app.post('/jwt', async (req, res) => {
@@ -477,23 +479,23 @@ async function run() {
 
             const findPet = await donationsCollection.findOne({ _id: new ObjectId(donationsDetails.petId) })
 
-                let updateDoc;
-                if(findPet.totalDonation){
-                    updateDoc = {
-                        $set: {
-                            totalDonation: donationsDetails.donarInfo.amount + findPet.totalDonation
-                        }
-                    }
-                }else{
-                    updateDoc = {
-                        $set: {
-                            totalDonation: donationsDetails.donarInfo.amount
-                        }
+            let updateDoc;
+            if (findPet.totalDonation) {
+                updateDoc = {
+                    $set: {
+                        totalDonation: donationsDetails.donarInfo.amount + findPet.totalDonation
                     }
                 }
-                
-                await donationsCollection.updateOne({ _id: new ObjectId(donationsDetails.petId)}, updateDoc, { upsert: true })
-            
+            } else {
+                updateDoc = {
+                    $set: {
+                        totalDonation: donationsDetails.donarInfo.amount
+                    }
+                }
+            }
+
+            await donationsCollection.updateOne({ _id: new ObjectId(donationsDetails.petId) }, updateDoc, { upsert: true })
+
             res.send(result)
             // console.log(donationsDetails)
             // const donationData
